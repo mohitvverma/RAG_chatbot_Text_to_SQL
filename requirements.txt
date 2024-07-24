@@ -1,3 +1,9 @@
 pandas
+langchain
+streamlit
+langchain-ai21
+langchain_community
+pymysql
+langchain_experimental
 
 -e .
