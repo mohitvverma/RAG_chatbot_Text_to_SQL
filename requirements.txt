@@ -5,5 +5,7 @@ langchain-ai21
 langchain_community
 pymysql
 langchain_experimental
+style
+sqlalchemy==2.0.29
 
 -e .

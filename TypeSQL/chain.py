@@ -1,24 +1,22 @@
 """
 Custom SQL Database chain
 """
-
 from __future__ import annotations
 import warnings
+warnings.filterwarnings("ignore")
 
-from typing import TYPE_CHECKING, Any, List, Optional, Dict
-
+from typing import Any, List, Optional, Dict
 from langchain.callbacks.manager import CallbackManagerForChainRun
-from langchain.chains.base import Chain
 from langchain.chains.llm import LLMChain
 from langchain.schema import BasePromptTemplate
-from langchain.chains.sql_database.prompt import DECIDER_PROMPT, PROMPT, SQL_PROMPTS
+from langchain.chains.sql_database.prompt import PROMPT, SQL_PROMPTS
 from langchain.prompts import PromptTemplate
 
 from langchain_community.tools.sql_database.prompt import QUERY_CHECKER
 from langchain_community.utilities.sql_database import SQLDatabase
 from langchain_core.language_models import BaseLanguageModel
 
-from langchain_experimental.pydantic_v1 import Extra, Field, root_validator
+from langchain_experimental.pydantic_v1 import Extra, Field
 
 from TypeSQL.logger import logging
 from TypeSQL.exception import TypeSQLException
@@ -28,8 +26,8 @@ SQL_QUERY = "SQLQuery:"
 SQL_RESULT = "SQLResult:"
 
 
-
 class SQLDatabaseChain(BaseLanguageModel):
+    logging.info("Initializing SQLDatabaseChain")
     """
     Chain for interacting with SQL Database.
 
@@ -106,9 +104,9 @@ class SQLDatabaseChain(BaseLanguageModel):
 
     @property
     def input_keys(self) -> List[str]:
-        """Return the singular input key.
-
-        :meta private:
+        """
+        Return the singular input key.
+        meta private:
         """
         return [self.input_key]
 
@@ -116,18 +114,24 @@ class SQLDatabaseChain(BaseLanguageModel):
     def output_keys(self) -> List[str]:
         """Return the singular output key.
 
-        :meta private:
+        meta private:
         """
-        if not self.return_intermediate_steps:
-            return [self.output_key]
-        else:
-            return [self.output_key, INTERMEDIATE_STEPS_KEY]
+        try:
+            if not self.return_intermediate_steps:
+                return [self.output_key]
+            else:
+                return [self.output_key, INTERMEDIATE_STEPS_KEY]
+
+        except Exception as e:
+            logging.error(e)
+            raise TypeSQLException(e)
 
     def _call(self, inputs: Dict[str, Any], run_manager: Optional[CallbackManagerForChainRun] = None) -> Dict[str, Any]:
         _run_manager = run_manager or CallbackManagerForChainRun.get_noop_manager()
         input_text = f"{inputs[self.input_key]}"
         extra = inputs["extra"]  # modified parts
         _run_manager.on_text(input_text, verbose=self.verbose)
+
         # If not present, then defaults to None which is all tables.
         table_names_to_use = inputs.get("table_names_to_use")
         table_info = self.database.get_table_info(table_names=table_names_to_use)
@@ -140,20 +144,20 @@ class SQLDatabaseChain(BaseLanguageModel):
             "table_info": table_info,
             "stop": ["\nSQLResult:"],
         }
+
         prompt = self.prompt.format(**llm_inputs)
         if self.memory is not None:
             for k in self.memory.memory_variables:
                 llm_inputs[k] = inputs[k]
+
         intermediate_steps: List = []
         try:
             intermediate_steps.append(llm_inputs.copy())  # input: sql generation
-            sql_cmd = self.llm_chain.predict(
-                callbacks=_run_manager.get_child(),
-                **llm_inputs,
-            ).strip()
+            sql_cmd = self.llm_chain.predict( callbacks=_run_manager.get_child(), **llm_inputs).strip()
             # if "ilike" in sql_cmd.lower():
             #     sql_cmd = sql_cmd.replace("ilike","like")
             #     sql_cmd = sql_cmd.replace("ILIKE","LIKE")
+
             if self.return_sql:
                 return {self.output_key: sql_cmd, "prompt": prompt}
             if not self.use_query_checker:
@@ -168,6 +172,7 @@ class SQLDatabaseChain(BaseLanguageModel):
                 #     sql_cmd = sql_cmd.split(SQL_RESULT)[0].strip()
                 result = self.database.run(sql_cmd)
                 intermediate_steps.append(str(result))  # output: sql exec
+
             else:
                 query_checker_prompt = self.query_checker_prompt or PromptTemplate(
                     template=QUERY_CHECKER, input_variables=["query", "dialect"]
@@ -179,6 +184,7 @@ class SQLDatabaseChain(BaseLanguageModel):
                     "query": sql_cmd,
                     "dialect": self.database.dialect,
                 }
+
                 checked_sql_command: str = query_checker_chain.predict(
                     callbacks=_run_manager.get_child(), **query_checker_inputs
                 ).strip()
@@ -197,6 +203,7 @@ class SQLDatabaseChain(BaseLanguageModel):
 
             _run_manager.on_text("\nSQLResult: ", verbose=self.verbose)
             _run_manager.on_text(str(result), color="yellow", verbose=self.verbose)
+
             # If return direct, we just set the final result equal to
             # the result of the sql query result, otherwise try to get a human readable
             # final answer
@@ -217,16 +224,17 @@ class SQLDatabaseChain(BaseLanguageModel):
             if self.return_intermediate_steps:
                 chain_result[INTERMEDIATE_STEPS_KEY] = intermediate_steps
             return chain_result
+
         except Exception as exc:
             # Append intermediate steps to exception, to aid in logging and later
             # improvement of few shot prompt seeds
             exc.intermediate_steps = intermediate_steps  # type: ignore
-            raise exc
+            logging.error(exc)
+            raise TypeSQLException(exc)
 
     @property
     def _chain_type(self) -> str:
         return "sql_database_chain"
-
 
     @classmethod
     def from_llm(cls, llm: BaseLanguageModel, db: SQLDatabase, prompt: Optional[BasePromptTemplate] = None,
