@@ -45,6 +45,7 @@ def initialize_session_state() -> dict:
         "prompt_regen_sql": st.session_state["prompt_regen_sql"],
         "prompt_response": st.session_state["prompt_response"]
     }
+    print(model_configs, prompt_configs)
     return model_configs, prompt_configs
 
 

@@ -42,7 +42,7 @@ def initialize_session_state() -> None:
 
 class Application():
     """
-    Start Chat UI in streamlit application
+    Start Chat UI in streamlit application.
     """
     def __init__(self, client: SQL2TextPipeline):
         logging.info("Initializing Application Constructor components")
@@ -89,7 +89,7 @@ class Application():
 
         except Exception as e:
             logging.error(e)
-            raise TypeSQLException(e, sys)
+            raise e
 
         finally:
             logging.info("Finished Start Chat inside Application")
@@ -156,6 +156,7 @@ class Application():
             elif "yes" in self.user_input.lower() or "y" == self.user_input.lower():
                 sql_query = self.sql_query
                 isQueryValid = check_query_validity(sql_query)
+
                 if not isQueryValid:
                     return
             else:  # assume changes are required as proceed with sql query by user
@@ -228,6 +229,7 @@ class Application():
 
                 self.sql_dict = sql_chain.invoke({"query": configs['input'], "extra": extra})
                 self.sql_dict = SQL2TextPipeline.change_query(self.sql_dict, self.db)
+
                 return self.sql_dict['result']
             elif configs['mode'] == "schema_mode":
                 if configs['task'] == "gen":
@@ -277,6 +279,7 @@ class Application():
             logging.error(f"{str(error)}")
             raise TypeSQLException(error, sys)
 
+    @staticmethod
     def print_chat_history(self, state) -> None:
         """To print all chat history in streamlit session"""
         for message in state:
@@ -312,6 +315,7 @@ class Application():
             if self.db.dialect == 'sqlite':
                 st.toast("Please ensure database filename is correct.", icon="🚨")
 
+    @staticmethod
     def verify_llm_status(self, isModelAvailable: bool, llm: str, isHumanFeedback: Union[bool, None] = None) -> bool:
         """To verify whether llm is online/offline and change state of "isHumanFeedback" in the end"""
         if isModelAvailable:
@@ -334,16 +338,19 @@ def main() -> None:
         model_configs, prompt_configs = obtain_configs()
         print('2')
         configs = setup_ChatUI_sidebar()
+        print('3')
         client = SQL2TextPipeline()
+        print('etvbeb')
         client.setup(st.session_state['isSetup'], configs, model_configs, prompt_configs)
         st.session_state['isSetup'] = False
+
     except Exception as error:
-        logging.error(f"Setup Fail. Error: {error}")
+        logging.info(f"Setup Fail. Error: {error}")
         st.warning(f"**Error 2**: {error, TypeSQLException(error,sys)}", icon="⚠️")
         return
 
     chat = Application(client)
-    #start chat with standard mode or db_schema_mode
+    # Start chat with standard mode or db_schema_mode
     if not configs['isdbSchemaMode']:
         chat.start_chat()
     else:
@@ -351,5 +358,5 @@ def main() -> None:
 
 
 if __name__ == "__main__":
-    #logging.info("Initiated main")
+    # logging.info("Initiated main")
     main()

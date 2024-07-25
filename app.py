@@ -51,11 +51,10 @@ def db_schema_mode(configs: dict) -> dict:
         height=600,
         value=st.session_state["db_schema"],
         key="db_schema_input",
-        on_change=lambda: (setattr(st.session_state, "db_schema", st.session_state["db_schema_input"]),
-                           setattr(st.session_state, "isConfigChange", True))
+        on_change=lambda:(setattr(st.session_state, "db_schema", st.session_state["db_schema_input"]),
+                          setattr(st.session_state, "isConfigChange", True))
 
                  )
-
     configs.update({"db_schema": db_schema})
     return configs
 
@@ -87,6 +86,40 @@ def standard_mode(configs: dict) -> dict:
 
         if st.session_state["isConfigChange"]:
             st.toast("Please ensure database is in 'sqlite' directory.", icon="🚨")
+
+    elif select_db == "PostgreSQL":
+        db_type = "PostgreSQL"
+        db_name_postgres = st.text_input("Database Filename",
+                                         value=st.session_state["db_name_postgres"],
+                                         key="db_name_postgres_input",
+                                         on_change=lambda: (setattr(st.session_state,
+                                                                    "db_name_postgres",
+                                                                    st.session_state["db_name_postgres_input"]),
+                                                            setattr(st.session_state, "isConfigChange", True)))
+        username = st.text_input("Database username",
+                                 value=st.session_state["username"],
+                                 key="username_input",
+                                 on_change=lambda: (setattr(st.session_state, "username", st.session_state["username_input"]),
+                                                    setattr(st.session_state, "isConfigChange", True)))
+        password = st.text_input("Database password",
+                                 value=st.session_state["password"],
+                                 type="password",
+                                 key="password_input",
+                                 on_change=lambda: (setattr(st.session_state, "password", st.session_state["password_input"]),
+                                                    setattr(st.session_state, "isConfigChange", True)))
+        hostname = st.text_input("Hostname / IP address",
+                                 value=st.session_state["hostname"],
+                                 key="hostname_input",
+                                 on_change=lambda: (setattr(st.session_state, "hostname", st.session_state["hostname_input"]),
+                                                    setattr(st.session_state, "isConfigChange", True)))
+        port = st.text_input("Port Number",
+                             value=st.session_state["port"],
+                             key="port_input",
+                             on_change=lambda: (setattr(st.session_state, "port", st.session_state["port_input"]),
+                                                setattr(st.session_state, "isConfigChange", True)))
+        config_values = [db_type, db_name_postgres, username, password, hostname, port]
+        new_keys = ["db_type", "db_name_postgres", "username", "password", "hostname", "port"]
+        db_config = dict(zip(new_keys, config_values))
 
     else:
         db_type = "MySQL"
@@ -129,7 +162,7 @@ def standard_mode(configs: dict) -> dict:
         )
 
         config_values = [db_type, db_name_mysql, username, password, hostname, port]
-        new_keys = ["db_type", 'db_name_mysql', 'username', 'password', 'hostname','port']
+        new_keys = ["db_type", 'db_name_mysql', 'username', 'password', 'hostname', 'port']
         db_config = dict(zip(new_keys, config_values))
 
     configs.update(db_config)
@@ -164,13 +197,18 @@ def setup_ChatUI_sidebar() -> dict:
     initialize_session_state()
     with st.sidebar:
         configs = change_mode()
-        if configs["isConfigChange"]:
+        if configs["isdbSchemaMode"]:
             configs = db_schema_mode(configs)
         else:
             configs = standard_mode(configs)
 
-    if configs["isSchemaMode"]:
+    if configs["isdbSchemaMode"]:
         st.markdown(SCHEMA_MODE_MD)
     update_logs(configs)
 
     return configs
+
+
+if __name__ == "__main__":
+    configs = setup_ChatUI_sidebar()
+    print(configs)
